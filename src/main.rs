@@ -11,7 +11,7 @@ enum Tile {
 }
 
 impl Display for Tile {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error>{
+    fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {
         let symbol = match self {
             Self::X => 'X',
             Self::O => 'O',
@@ -213,8 +213,7 @@ fn main() -> Result<(), Error> {
         std::io::stdin().read_line(&mut input)?;
         if let Ok(index) = input.trim().parse() {
             game.play(index);
-        }
-        else {
+        } else {
             println!("Invalid input, please enter a number between 0 and 8");
             continue;
         }
