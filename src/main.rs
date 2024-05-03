@@ -1,7 +1,7 @@
 // Tic-Tac-Toe game in Rust
 
-use colored::*;
-use core::fmt::{Display, Formatter, Result};
+use colored::Colorize;
+use core::fmt::{Display, Formatter};
 
 #[derive(PartialEq, Clone, Copy, Debug)]
 enum Tile {
@@ -11,13 +11,13 @@ enum Tile {
 }
 
 impl Display for Tile {
-    fn fmt(&self, f: &mut Formatter) -> Result {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error>{
         let symbol = match self {
-            Tile::X => 'X',
-            Tile::O => 'O',
-            Tile::Empty => ' ',
+            Self::X => 'X',
+            Self::O => 'O',
+            Self::Empty => ' ',
         };
-        write!(f, "{}", symbol)
+        write!(f, "{symbol}")
     }
 }
 
@@ -27,7 +27,7 @@ struct Row {
 }
 
 impl Row {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             tiles: [Tile::Empty; 3],
         }
@@ -39,24 +39,24 @@ struct Diagonal<'a> {
 }
 
 trait Completable {
-    fn is_complete(&self, tile: &Tile) -> bool;
+    fn is_complete(&self, tile: Tile) -> bool;
 }
 
 impl Completable for [Tile; 3] {
-    fn is_complete(&self, tile: &Tile) -> bool {
-        self.iter().all(|t| t == tile)
+    fn is_complete(&self, tile: Tile) -> bool {
+        self.iter().all(|t| *t == tile)
     }
 }
 
 impl Completable for Row {
-    fn is_complete(&self, tile: &Tile) -> bool {
-        self.tiles.is_complete(&tile)
+    fn is_complete(&self, tile: Tile) -> bool {
+        self.tiles.is_complete(tile)
     }
 }
 
 impl Completable for Diagonal<'_> {
-    fn is_complete(&self, tile: &Tile) -> bool {
-        self.tiles.iter().all(|&t| t == tile)
+    fn is_complete(&self, tile: Tile) -> bool {
+        self.tiles.iter().all(|&t| *t == tile)
     }
 }
 
@@ -69,7 +69,7 @@ struct Game {
 }
 
 impl Game {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             board: [Row::new(), Row::new(), Row::new()],
             player: Tile::X,
@@ -97,7 +97,7 @@ impl Game {
             self.player = match self.player {
                 Tile::X => Tile::O,
                 Tile::O => Tile::X,
-                _ => panic!("Invalid player"),
+                Tile::Empty => panic!("Invalid player"),
             };
         }
     }
@@ -112,20 +112,20 @@ impl Game {
     }
 
     pub fn any_row_complete(&self, tile: Tile) -> bool {
-        self.board.iter().any(|row| row.is_complete(&tile))
+        self.board.iter().any(|row| row.is_complete(tile))
     }
 
     pub fn any_col_complete(&self, tile: Tile) -> bool {
         let cols = self.cols();
-        cols.iter().any(|col| col.is_complete(&tile))
+        cols.iter().any(|col| col.is_complete(tile))
     }
 
     pub fn any_diagonal_complete(&self, tile: Tile) -> bool {
         let diags = self.diagonals();
-        diags.iter().any(|diag| diag.is_complete(&tile))
+        diags.iter().any(|diag| diag.is_complete(tile))
     }
 
-    pub fn diagonals(&self) -> [Diagonal; 2] {
+    pub const fn diagonals(&self) -> [Diagonal; 2] {
         [
             Diagonal {
                 tiles: [
@@ -144,7 +144,7 @@ impl Game {
         ]
     }
 
-    pub fn cols(&self) -> [Row; 3] {
+    pub const fn cols(&self) -> [Row; 3] {
         [
             Row {
                 tiles: [
@@ -170,28 +170,28 @@ impl Game {
         ]
     }
 
-    pub fn is_tie(&self) -> bool {
+    pub const fn is_tie(&self) -> bool {
         self.turn == 9
     }
 
-    pub fn game_over(&self) -> bool {
+    pub const fn game_over(&self) -> bool {
         self.over
     }
 }
 
 impl Display for Game {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        for (i, row) in self.board.iter().enumerate() {
-            for (j, tile) in row.tiles.iter().enumerate() {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+        for (i, row) in (0u32..).zip(self.board.iter()) {
+            for (j, tile) in (0u32..).zip(row.tiles.iter()) {
                 let symbol = match tile {
                     Tile::X => 'X',
                     Tile::O => 'O',
-                    Tile::Empty => (i * 3 + j).to_string().chars().next().unwrap(),
+                    Tile::Empty => char::from_digit(i * 3 + j, 10).unwrap_or(' '),
                 };
                 match symbol {
                     'X' => write!(f, "{} ", symbol.to_string().green()),
                     'O' => write!(f, "{} ", symbol.to_string().red()),
-                    _ => write!(f, "{} ", symbol.to_string()),
+                    _ => write!(f, "{symbol} "),
                 }?;
             }
             writeln!(f)?;
@@ -201,23 +201,31 @@ impl Display for Game {
     }
 }
 
-fn main() {
+use std::io::Error;
+
+fn main() -> Result<(), Error> {
     let mut game = Game::new();
 
     while !game.game_over() {
-        println!("{}", game);
+        println!("{game}");
         println!("Player {}, enter your move (0-8):", game.player);
         let mut input = String::new();
-        std::io::stdin().read_line(&mut input).unwrap();
-        let index: usize = input.trim().parse().unwrap();
-        game.play(index);
+        std::io::stdin().read_line(&mut input)?;
+        if let Ok(index) = input.trim().parse() {
+            game.play(index);
+        }
+        else {
+            println!("Invalid input, please enter a number between 0 and 8");
+            continue;
+        }
     }
-    println!("{}", game);
+    println!("{game}");
     match game.winner {
         Tile::X => println!("Player X wins!"),
         Tile::O => println!("Player O wins!"),
-        _ => println!("It's a tie!"),
+        Tile::Empty => println!("It's a tie!"),
     }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -229,7 +237,7 @@ mod tests {
         let row = Row {
             tiles: [Tile::X, Tile::X, Tile::X],
         };
-        assert!(row.is_complete(&Tile::X));
+        assert!(row.is_complete(Tile::X));
     }
 
     #[test]
@@ -237,7 +245,7 @@ mod tests {
         let diag = Diagonal {
             tiles: [&Tile::X, &Tile::X, &Tile::X],
         };
-        assert!(diag.is_complete(&Tile::X));
+        assert!(diag.is_complete(Tile::X));
     }
 
     #[test]
